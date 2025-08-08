@@ -1,1 +1,35 @@
 @import './base.css';
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+/* ===== RESET & BASE ===== */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Poppins', sans-serif;
+  background-color: #121212;
+  color: #E0E0E0;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== COLOR VARIABLES ===== */
+:root {
+  --primary: #00E5FF;   /* Neon Cyan */
+  --secondary: #B388FF; /* Neon Violet */
+  --bg-dark: #121212;   /* Dark Background */
+  --text-light: #E0E0E0;
+  --text-muted: #BDBDBD;
+  --accent: #FF6B6B;    /* Accent Red */
+  --success: #4CAF50;
+  --warning: #FFC107;
+  --error: #F44336;
+}
