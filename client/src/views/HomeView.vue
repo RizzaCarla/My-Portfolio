@@ -3,17 +3,17 @@
     <section class="home-section">
       <v-container>
         <v-row align="center" class="full-height-home">
-          <v-col cols="12" md="6">
+          <v-col cols="12" sm="10" md="11" lg="10" xl="8">
             <h1 class="home-greeting" :class="{ 'typing': !greetingComplete }">{{ displayedGreeting }}</h1>
             <h1 class="home-name" :class="{ 'typing': !nameComplete && greetingComplete }">{{ displayedName }}</h1>
-            <p class="home-title">Explore my latest creations</p>
+            <p class="home-title"><span class="sparkling-star secret-login" @click="goToLogin">✨&nbsp;</span> Explore my latest creations <span class="sparkling-star sparkling-star-delayed">✨</span></p>
             
             <!-- Latest Content Preview -->
             <div class="latest-content mt-8">
               <v-row>
                 <!-- Latest Artwork -->
                 <v-col cols="4">
-                  <div class="content-card" @click="goToArtwork">
+                  <div class="content-card scroll-animate" @click="goToArtwork" ref="artworkCard">
                     <div class="content-image" :style="{ backgroundImage: `url(${latestArtwork.image})` }">
                       <div class="content-overlay">
                         <div class="content-label">Latest Artwork</div>
@@ -25,7 +25,7 @@
 
                 <!-- Latest Travel -->
                 <v-col cols="4">
-                  <div class="content-card" @click="goToTravels">
+                  <div class="content-card scroll-animate" @click="goToTravels" ref="travelCard">
                     <div class="content-image" :style="{ backgroundImage: `url(${latestTravel.image})` }">
                       <div class="content-overlay">
                         <div class="content-label">Latest Travel</div>
@@ -37,7 +37,7 @@
 
                 <!-- Latest Project -->
                 <v-col cols="4">
-                  <div class="content-card" @click="goToResume">
+                  <div class="content-card scroll-animate" @click="goToResume" ref="projectCard">
                     <div class="content-image" :style="{ backgroundImage: `url(${latestProject.image})` }">
                       <div class="content-overlay">
                         <div class="content-label">Latest Project</div>
@@ -57,91 +57,225 @@
 </template>
 
 <script>
+// Constants for better maintainability
+const TYPING_SPEED = 100
+const MOBILE_BREAKPOINT = 768
+const SECRET_CLICK_THRESHOLD = 3
+const ANIMATION_DELAYS = {
+  NAME_START: 300,
+  FIRST_CARD: 500,
+  CARD_STAGGER: 200
+}
+
 export default {
   name: 'HomeView',
+  
   data() {
     return {
-      // Typing animation data
-      greetingText: "Hi, I'm",
-      nameText: "Rizza Marzo",
-      displayedGreeting: "",
-      displayedName: "",
-      greetingComplete: false,
-      nameComplete: false,
-      typingSpeed: 100, // milliseconds per character
+      // Typing animation state
+      typingState: {
+        greetingText: "Hi, I'm",
+        nameText: "Rizza Marzo",
+        displayedGreeting: "",
+        displayedName: "",
+        greetingComplete: false,
+        nameComplete: false,
+        finished: false
+      },
       
-      latestArtwork: {
-        title: 'Digital Dreams',
-        image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop',
-        date: '2024-01-15'
-      },
-      latestTravel: {
-        title: 'Tokyo Adventures',
-        image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=400&fit=crop',
-        date: '2024-01-10'
-      },
-      latestProject: {
-        title: 'Portfolio Website',
-        image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=400&fit=crop',
-        date: '2024-01-08'
-      },
-      skills: [
-        { name: 'Digital Art', percentage: 90 },
-        { name: 'Photography', percentage: 85 },
-        { name: 'Travel Writing', percentage: 80 }
-      ]
+      // Secret login functionality
+      secretClickCount: 0,
+      
+      // Content data (TODO: Move to API/store)
+      content: {
+        artwork: {
+          title: 'Digital Dreams',
+          image: 'https://images.unsplash.com/photo-1578321272176-b7bbc0679853?w=400&h=400&fit=crop',
+          date: '2024-01-15'
+        },
+        travel: {
+          title: 'Tokyo Adventures',
+          image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=400&h=400&fit=crop',
+          date: '2024-01-10'
+        },
+        project: {
+          title: 'Portfolio Website',
+          image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=400&fit=crop',
+          date: '2024-01-08'
+        }
+      }
+    }
+  },
+  
+  computed: {
+    // Computed properties for better template readability
+    latestArtwork() {
+      return this.content.artwork
+    },
+    
+    latestTravel() {
+      return this.content.travel
+    },
+    
+    latestProject() {
+      return this.content.project
+    },
+    
+    displayedGreeting() {
+      return this.typingState.displayedGreeting
+    },
+    
+    displayedName() {
+      return this.typingState.displayedName
+    },
+    
+    greetingComplete() {
+      return this.typingState.greetingComplete
+    },
+    
+    nameComplete() {
+      return this.typingState.nameComplete
+    },
+    
+    isMobile() {
+      return window.innerWidth <= MOBILE_BREAKPOINT
     }
   },
   
   mounted() {
-    this.startTypingAnimation()
+    this.initializeAnimations()
+  },
+  
+  beforeUnmount() {
+    // Clean up intersection observer if it exists
+    if (this.scrollObserver) {
+      this.scrollObserver.disconnect()
+    }
   },
   
   methods: {
+    // Initialization
+    initializeAnimations() {
+      this.startTypingAnimation()
+      this.setupScrollAnimation()
+    },
+    
+    // Typing Animation Methods
     startTypingAnimation() {
-      this.typeGreeting()
+      this.typeText('greeting')
     },
     
-    typeGreeting() {
+    typeText(type) {
+      const isGreeting = type === 'greeting'
+      const text = isGreeting ? this.typingState.greetingText : this.typingState.nameText
+      const displayKey = isGreeting ? 'displayedGreeting' : 'displayedName'
+      const completeKey = isGreeting ? 'greetingComplete' : 'nameComplete'
+      
       let i = 0
       const typeChar = () => {
-        if (i < this.greetingText.length) {
-          this.displayedGreeting += this.greetingText.charAt(i)
+        if (i < text.length) {
+          this.typingState[displayKey] += text.charAt(i)
           i++
-          setTimeout(typeChar, this.typingSpeed)
+          setTimeout(typeChar, TYPING_SPEED)
         } else {
-          this.greetingComplete = true
-          // Wait a moment, then start typing the name
-          setTimeout(() => {
-            this.typeName()
-          }, 300)
+          this.typingState[completeKey] = true
+          this.handleTypingComplete(isGreeting)
         }
       }
       typeChar()
     },
     
-    typeName() {
-      let i = 0
-      const typeChar = () => {
-        if (i < this.nameText.length) {
-          this.displayedName += this.nameText.charAt(i)
-          i++
-          setTimeout(typeChar, this.typingSpeed)
-        } else {
-          this.nameComplete = true
-        }
+    handleTypingComplete(wasGreeting) {
+      if (wasGreeting) {
+        // Start name typing after greeting completes
+        setTimeout(() => {
+          this.typeText('name')
+        }, ANIMATION_DELAYS.NAME_START)
+      } else {
+        // All typing is finished
+        this.typingState.finished = true
+        this.triggerFirstCardAnimation()
       }
-      typeChar()
     },
     
+    triggerFirstCardAnimation() {
+      if (this.isMobile && this.$refs.artworkCard) {
+        setTimeout(() => {
+          this.$refs.artworkCard.classList.add('animate-in')
+        }, ANIMATION_DELAYS.FIRST_CARD)
+      }
+    },
+    
+    // Navigation Methods
     goToArtwork() {
-      this.$router.push('/artwork')
+      this.navigateTo('/artwork')
     },
+    
     goToTravels() {
-      this.$router.push('/travels')
+      this.navigateTo('/travels')
     },
+    
     goToResume() {
-      this.$router.push('/resume')
+      this.navigateTo('/resume')
+    },
+    
+    navigateTo(path) {
+      this.$router.push(path)
+    },
+    
+    // Secret Login Functionality
+    goToLogin() {
+      this.secretClickCount++
+      if (this.secretClickCount >= SECRET_CLICK_THRESHOLD) {
+        this.navigateTo('/admin/login')
+        this.secretClickCount = 0
+      }
+    },
+    
+    // Scroll Animation Setup
+    setupScrollAnimation() {
+      if (!this.isMobile) return
+      
+      this.scrollObserver = new IntersectionObserver(
+        this.handleIntersection,
+        {
+          threshold: 0.2,
+          rootMargin: '0px 0px -50px 0px'
+        }
+      )
+      
+      this.observeCards()
+    },
+    
+    handleIntersection(entries) {
+      entries.forEach((entry, index) => {
+        if (entry.isIntersecting) {
+          this.animateCardOnScroll(entry.target, index)
+        }
+      })
+    },
+    
+    animateCardOnScroll(target, index) {
+      // First card only animates after typing is finished
+      if (target === this.$refs.artworkCard && !this.typingState.finished) {
+        return
+      }
+      
+      target.classList.add('animate-in')
+      
+      // Apply stagger delay (skip first card as it's handled by typing)
+      if (target !== this.$refs.artworkCard) {
+        target.style.animationDelay = `${index * ANIMATION_DELAYS.CARD_STAGGER}ms`
+      }
+    },
+    
+    observeCards() {
+      const cards = [this.$refs.artworkCard, this.$refs.travelCard, this.$refs.projectCard]
+      cards.forEach(card => {
+        if (card && this.scrollObserver) {
+          this.scrollObserver.observe(card)
+        }
+      })
     }
   }
 }
@@ -161,15 +295,57 @@ export default {
   padding: 2rem 0;
 }
 
+@media (min-width: 600px) {
+  .home-section .v-container {
+    max-width: 95%;
+  }
+}
+
+.v-col {
+  transition: all 0.3s ease;
+}
+
+/* Mobile scroll animations */
+@media (max-width: 768px) {
+  .scroll-animate {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+    transition: all 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .scroll-animate.animate-in {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  
+  /* Cool bounce effect */
+  .animate-in .content-image {
+    animation: bounceIn 1s ease-out forwards;
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(0.3) rotate(-10deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05) rotate(2deg);
+  }
+  70% {
+    transform: scale(0.9) rotate(-1deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
 .full-height-home {
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.min-vh-100 {
-  min-height: 100vh;
 }
 
 .home-greeting {
@@ -214,6 +390,39 @@ export default {
   color: var(--primary);
   font-weight: 500;
   margin-bottom: 2rem;
+}
+
+.sparkling-star {
+  display: inline-block;
+  animation: sparkle 3s ease-in-out infinite;
+  margin-left: 0.5rem;
+}
+
+.sparkling-star-delayed {
+  animation-delay: 1.5s;
+}
+
+.secret-login {
+  cursor: pointer;
+}
+
+@keyframes sparkle {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  25% { 
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  50% { 
+    transform: scale(0.8);
+    opacity: 0.6;
+  }
+  75% { 
+    transform: scale(1.1);
+    opacity: 1;
+  }
 }
 
 /* Latest Content Preview */
@@ -264,132 +473,13 @@ export default {
   margin: 0;
 }
 
-/* Section Spacing */
-.section-spacing {
-  padding: 6rem 0;
-}
-
-.section-title {
-  font-size: 3rem;
-  font-weight: 700;
-  color: var(--text-light);
-  margin-bottom: 3rem;
-}
-
-/* Project Cards */
-.project-card {
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-}
-
-.project-image {
-  width: 200px;
-  height: 150px;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
-.geometric-art {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.project-content {
-  flex: 1;
-}
-
-.project-title {
-  font-size: 1.5rem;
-  font-weight: 600;
-  color: var(--text-light);
-  margin-bottom: 0.5rem;
-}
-
-.project-description {
-  color: var(--text-muted);
-  margin-bottom: 1rem;
-  line-height: 1.6;
-}
-
-.view-project-btn {
-  color: var(--primary) !important;
-  text-transform: none;
-  font-weight: 500;
-}
-
-/* Travels Section */
-.travels-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.world-map {
-  position: relative;
-  width: 200px;
-  height: 100px;
-  background: rgba(0, 229, 255, 0.1);
-  border-radius: 12px;
-}
-
-.travel-dot {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: var(--primary);
-  border-radius: 50%;
-  box-shadow: 0 0 10px var(--primary);
-}
-
-.travel-project-card {
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2rem;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Skills Section */
-.skill-card {
-  text-align: center;
-  padding: 1rem;
-}
-
-.skill-circle {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  border: 3px solid var(--primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 1rem;
-  background: rgba(0, 229, 255, 0.1);
-}
-
-.skill-percentage {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: var(--primary);
-}
-
-.skill-name {
-  font-weight: 500;
-  color: var(--text-light);
-}
-
-/* Resume Section */
-.resume-btn {
-  background: transparent !important;
-  border: 2px solid var(--primary) !important;
-  color: var(--primary) !important;
-  padding: 1rem 2rem !important;
-  text-transform: none !important;
-  font-weight: 500 !important;
-}
-
 /* Mobile Responsiveness */
 @media (max-width: 768px) {
+  .full-height-home {
+    align-items: flex-start;
+    padding-top: 2rem;
+  }
+  
   .home-greeting {
     font-size: 2.5rem;
   }
@@ -402,18 +492,14 @@ export default {
     font-size: 1.2rem;
   }
   
-  .section-title {
-    font-size: 2rem;
+  .latest-content .v-row {
+    flex-direction: column;
   }
   
-  .project-card {
-    flex-direction: column;
-    text-align: center;
+  .latest-content .v-col {
+    max-width: 100% !important;
+    flex-basis: auto !important;
   }
   
-  .travels-header {
-    flex-direction: column;
-    gap: 1rem;
-  }
 }
 </style>
