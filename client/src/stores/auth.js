@@ -4,11 +4,8 @@ export const useAuthStore = defineStore('auth', {
   state: () => ({
     isAuthenticated: false,
     user: null,
-    // Simple admin credentials - in production this would be handled server-side
-    adminCredentials: {
-      username: 'rizza',
-      password: 'admin2024!' // You can change this password
-    }
+    token: null,
+    sessionTimeout: null
   }),
   
   getters: {
@@ -17,52 +14,142 @@ export const useAuthStore = defineStore('auth', {
   
   actions: {
     async login(username, password) {
-      // Simple client-side authentication - for demo purposes
-      // In production, this would make an API call to your backend
-      if (username === this.adminCredentials.username && 
-          password === this.adminCredentials.password) {
-        
-        this.isAuthenticated = true
-        this.user = {
-          id: 1,
-          username: 'rizza',
-          name: 'Rizza Marzo',
-          role: 'admin'
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ username, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return { success: false, message: data.message };
         }
-        
-        // Store auth state in localStorage for persistence
+
+        // Store authentication data
+        this.isAuthenticated = true;
+        this.user = data.user;
+        this.token = data.token;
+
+        // Store in localStorage
         localStorage.setItem('portfolio_auth', JSON.stringify({
           isAuthenticated: true,
-          user: this.user
-        }))
-        
-        return { success: true, message: 'Login successful!' }
-      } else {
-        return { success: false, message: 'Invalid credentials' }
+          user: data.user,
+          token: data.token
+        }));
+
+        // Start token expiration check
+        this.startTokenCheck();
+
+        return { success: true, message: data.message };
+
+      } catch (error) {
+        console.error('Login error:', error);
+        return { success: false, message: 'Network error. Please try again.' };
       }
     },
     
-    logout() {
-      this.isAuthenticated = false
-      this.user = null
-      localStorage.removeItem('portfolio_auth')
+    async logout() {
+      try {
+        // Call logout API if token exists
+        if (this.token) {
+          await fetch('/api/auth/logout', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.token}`,
+              'Content-Type': 'application/json'
+            }
+          });
+        }
+      } catch (error) {
+        console.error('Logout API error:', error);
+      } finally {
+        // Clear local state regardless of API call result
+        this.isAuthenticated = false;
+        this.user = null;
+        this.token = null;
+        this.clearSessionTimeout();
+        localStorage.removeItem('portfolio_auth');
+      }
     },
     
     // Check if user is already logged in (on app startup)
-    checkAuth() {
-      const stored = localStorage.getItem('portfolio_auth')
+    async checkAuth() {
+      const stored = localStorage.getItem('portfolio_auth');
       if (stored) {
         try {
-          const authData = JSON.parse(stored)
-          if (authData.isAuthenticated && authData.user) {
-            this.isAuthenticated = true
-            this.user = authData.user
+          const authData = JSON.parse(stored);
+          
+          if (authData.token && authData.user) {
+            // Verify token with server
+            const isValid = await this.verifyToken(authData.token);
+            
+            if (isValid) {
+              this.isAuthenticated = true;
+              this.user = authData.user;
+              this.token = authData.token;
+              this.startTokenCheck();
+              return { success: true };
+            } else {
+              // Token invalid, clear auth
+              this.logout();
+              return { expired: true, message: 'Your session has expired. Please login again.' };
+            }
           }
         } catch (e) {
           // Invalid stored data, clear it
-          localStorage.removeItem('portfolio_auth')
+          localStorage.removeItem('portfolio_auth');
         }
       }
+      return { success: false };
+    },
+
+    // Verify token with server
+    async verifyToken(token) {
+      try {
+        const response = await fetch('/api/auth/verify', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        return response.ok;
+      } catch (error) {
+        console.error('Token verification error:', error);
+        return false;
+      }
+    },
+
+    // Start periodic token check (every 5 minutes)
+    startTokenCheck() {
+      this.clearSessionTimeout();
+      
+      this.sessionTimeout = setInterval(async () => {
+        if (this.token) {
+          const isValid = await this.verifyToken(this.token);
+          if (!isValid) {
+            console.log('Token expired, logging out...');
+            await this.logout();
+          }
+        }
+      }, 5 * 60 * 1000); // Check every 5 minutes
+    },
+
+    // Clear token check interval
+    clearSessionTimeout() {
+      if (this.sessionTimeout) {
+        clearInterval(this.sessionTimeout);
+        this.sessionTimeout = null;
+      }
+    },
+
+    // Get authorization header for API calls
+    getAuthHeader() {
+      return this.token ? { 'Authorization': `Bearer ${this.token}` } : {};
     }
   }
 })

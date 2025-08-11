@@ -7,7 +7,9 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import artworkRoutes from './routes/artwork.js';
-import uploadRoutes from './routes/upload.js';
+import authRoutes from './routes/auth.js';
+import travelRoutes from './routes/travel.js';
+import photoMetadataRoutes from './routes/photoMetadata.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -78,8 +80,10 @@ app.get('/api/health', (req, res) => {
 });
 
 // API routes
+app.use('/api/auth', authRoutes);
 app.use('/api/artwork', artworkRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/api/travel', travelRoutes);
+app.use('/api/photo', photoMetadataRoutes);
 
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend is working!' });

@@ -33,3 +33,13 @@ body {
   --warning: #FFC107;
   --error: #F44336;
 }
+
+/* ===== GLOBAL DISABLED BUTTON STYLES ===== */
+button:disabled,
+.btn:disabled,
+input[type="button"]:disabled,
+input[type="submit"]:disabled,
+.v-btn:disabled {
+  opacity: 0.25 !important;
+  cursor: pointer !important;
+}

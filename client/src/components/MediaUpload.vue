@@ -40,7 +40,7 @@
 <script>
 export default {
   name: 'MediaUpload',
-  emits: ['upload-success', 'upload-error'],
+  emits: ['file-selected', 'file-error'],
   data() {
     return {
       uploading: false,
@@ -73,41 +73,42 @@ export default {
       this.error = null;
       this.uploadedFile = null;
       
-      const formData = new FormData();
-      formData.append('media', file);
+      // Validate file
+      if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+        this.error = 'Please select an image or video file';
+        this.$emit('file-error', { message: this.error });
+        this.uploading = false;
+        return;
+      }
       
-      try {
-        const response = await fetch('/api/upload/single', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (!response.ok) {
-          throw new Error('Upload failed');
-        }
-        
-        const result = await response.json();
+      if (file.size > 500 * 1024 * 1024) { // 500MB
+        this.error = 'File size must be less than 500MB';
+        this.$emit('file-error', { message: this.error });
+        this.uploading = false;
+        return;
+      }
+      
+      // Just store file data and emit to parent
+      setTimeout(() => {
         this.uploadedFile = {
-          url: result.fileUrl,
+          file: file,
           originalName: file.name,
-          size: result.fileSize,
-          type: result.mimeType
+          size: file.size,
+          type: file.type
         };
         
-        this.$emit('upload-success', this.uploadedFile);
-        
-      } catch (error) {
-        this.error = error.message;
-        this.$emit('upload-error', error);
-      } finally {
+        this.$emit('file-selected', this.uploadedFile);
         this.uploading = false;
-      }
+      }, 500); // Small delay for UX
     },
     
     reset() {
       this.uploadedFile = null;
       this.error = null;
       this.uploading = false;
+      if (this.$refs.fileInput) {
+        this.$refs.fileInput.value = '';
+      }
     }
   }
 }

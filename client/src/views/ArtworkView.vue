@@ -23,9 +23,9 @@
           class="mb-4"
         >
           <v-tab>All</v-tab>
-          <v-tab>Digital Art</v-tab>
-          <v-tab>Photography</v-tab>
-          <v-tab>Sketches</v-tab>
+          <v-tab>Painting</v-tab>
+          <v-tab>Ceramic</v-tab>
+          <v-tab>Embroidery</v-tab>
         </v-tabs>
       </v-col>
     </v-row>
@@ -47,11 +47,22 @@
           hover
         >
           <v-img 
-            :src="artwork.image" 
+            :src="artwork.imageUrl" 
             :alt="artwork.title"
             height="250"
             cover
+            :loading="loading"
           >
+            <template v-slot:placeholder>
+              <v-row class="fill-height ma-0" align="center" justify="center">
+                <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              </v-row>
+            </template>
+            <template v-slot:error>
+              <v-row class="fill-height ma-0" align="center" justify="center">
+                <v-icon size="48" color="grey">mdi-image-broken-variant</v-icon>
+              </v-row>
+            </template>
             <v-overlay absolute opacity="0" class="artwork-overlay">
               <v-btn icon large color="white">
                 <v-icon>mdi-eye</v-icon>
@@ -60,11 +71,10 @@
           </v-img>
           
           <v-card-title class="text-h6">{{ artwork.title }}</v-card-title>
-          <v-card-subtitle>{{ artwork.category }}</v-card-subtitle>
           <v-card-text>
             <p class="text-body-2">{{ artwork.description }}</p>
             <v-chip small :color="getCategoryColor(artwork.category)" outlined class="mt-2">
-              {{ artwork.category }}
+              {{ formatCategory(artwork.category) }}
             </v-chip>
           </v-card-text>
           
@@ -74,37 +84,30 @@
               Details
             </v-btn>
             <v-spacer></v-spacer>
-            <v-btn icon @click.stop="likeArtwork(artwork.id)">
-              <v-icon :color="artwork.liked ? 'red' : 'grey'">
-                {{ artwork.liked ? 'mdi-heart' : 'mdi-heart-outline' }}
-              </v-icon>
-            </v-btn>
-            <span class="text-caption">{{ artwork.likes }}</span>
+            <span class="text-caption">{{ formatDate(artwork.createdAt) }}</span>
           </v-card-actions>
         </v-card>
       </v-col>
     </v-row>
 
-    <!-- No Results -->
-    <v-row v-if="filteredArtwork.length === 0" class="mt-8">
+    <!-- Loading State -->
+    <v-row v-if="loading" class="mt-8">
       <v-col cols="12" class="text-center">
-        <v-icon size="64" color="grey">mdi-image-off</v-icon>
-        <p class="text-h6 grey--text mt-4">No artwork found in this category</p>
+        <v-progress-circular size="64" indeterminate color="primary"></v-progress-circular>
+        <p class="text-h6 mt-4">Loading artwork...</p>
       </v-col>
     </v-row>
 
-    <!-- Add Artwork Button (for future admin functionality) -->
-    <v-btn
-      fab
-      large
-      color="primary"
-      fixed
-      bottom
-      right
-      @click="addArtwork"
-    >
-      <v-icon>mdi-plus</v-icon>
-    </v-btn>
+    <!-- No Results -->
+    <v-row v-else-if="filteredArtwork.length === 0 && !loading" class="mt-8">
+      <v-col cols="12" class="text-center">
+        <v-icon size="64" color="grey">mdi-image-off</v-icon>
+        <p class="text-h6 grey--text mt-4">
+          {{ activeTab === 0 ? 'No artwork available yet' : 'No artwork found in this category' }}
+        </p>
+      </v-col>
+    </v-row>
+
 
     <!-- Artwork Detail Dialog -->
     <v-dialog v-model="detailDialog" max-width="800">
@@ -118,7 +121,7 @@
         </v-card-title>
         
         <v-img 
-          :src="selectedArtwork.image" 
+          :src="selectedArtwork.imageUrl" 
           :alt="selectedArtwork.title"
           max-height="400"
           contain
@@ -132,9 +135,9 @@
             </v-col>
             <v-col cols="12" md="4">
               <h4 class="text-h6 mb-2">Details</h4>
-              <p><strong>Category:</strong> {{ selectedArtwork.category }}</p>
-              <p><strong>Created:</strong> {{ selectedArtwork.created }}</p>
-              <p><strong>Medium:</strong> {{ selectedArtwork.medium }}</p>
+              <p><strong>Category:</strong> {{ formatCategory(selectedArtwork.category) }}</p>
+              <p><strong>Created:</strong> {{ formatDate(selectedArtwork.createdAt) }}</p>
+              <p><strong>Updated:</strong> {{ formatDate(selectedArtwork.updatedAt) }}</p>
             </v-col>
           </v-row>
         </v-card-text>
@@ -151,81 +154,10 @@ export default {
       activeTab: 0,
       detailDialog: false,
       selectedArtwork: null,
+      loading: false,
       artwork: [
-        {
-          id: 1,
-          title: 'Sunset Mountains',
-          category: 'Digital Art',
-          description: 'A peaceful mountain landscape at sunset',
-          fullDescription: 'This digital painting captures the serene beauty of mountain peaks during golden hour. Created using digital painting techniques with warm color palettes.',
-          image: 'https://picsum.photos/400/300?random=1',
-          created: 'March 2024',
-          medium: 'Digital Painting',
-          likes: 24,
-          liked: false
-        },
-        {
-          id: 2,
-          title: 'Urban Portrait',
-          category: 'Photography',
-          description: 'Street photography in downtown',
-          fullDescription: 'A candid street photograph capturing the essence of urban life. Shot during blue hour with natural lighting.',
-          image: 'https://picsum.photos/400/300?random=2',
-          created: 'February 2024',
-          medium: 'Photography',
-          likes: 18,
-          liked: true
-        },
-        {
-          id: 3,
-          title: 'Character Study',
-          category: 'Sketches',
-          description: 'Pencil sketch of a character design',
-          fullDescription: 'A detailed character study exploring facial expressions and proportions. Done with graphite pencils on paper.',
-          image: 'https://picsum.photos/400/300?random=3',
-          created: 'January 2024',
-          medium: 'Pencil on Paper',
-          likes: 31,
-          liked: false
-        },
-        {
-          id: 4,
-          title: 'Abstract Flow',
-          category: 'Digital Art',
-          description: 'Colorful abstract digital composition',
-          fullDescription: 'An experimental digital artwork exploring color theory and abstract forms. Created using various digital brushes and techniques.',
-          image: 'https://picsum.photos/400/300?random=4',
-          created: 'March 2024',
-          medium: 'Digital Art',
-          likes: 12,
-          liked: false
-        },
-        {
-          id: 5,
-          title: 'Nature Close-up',
-          category: 'Photography',
-          description: 'Macro photography of forest details',
-          fullDescription: 'A macro photograph showcasing the intricate details found in nature. Shot with natural lighting in a local forest.',
-          image: 'https://picsum.photos/400/300?random=5',
-          created: 'April 2024',
-          medium: 'Macro Photography',
-          likes: 27,
-          liked: true
-        },
-        {
-          id: 6,
-          title: 'Architecture Study',
-          category: 'Sketches',
-          description: 'Ink drawing of historic building',
-          fullDescription: 'An architectural study of a historic building, focusing on perspective and detail. Created with ink pens and fine liners.',
-          image: 'https://picsum.photos/400/300?random=6',
-          created: 'February 2024',
-          medium: 'Ink Drawing',
-          likes: 15,
-          liked: false
-        }
       ],
-      categories: ['All', 'Digital Art', 'Photography', 'Sketches']
+      categories: ['All', 'painting', 'ceramic', 'embroidery']
     }
   },
   computed: {
@@ -237,12 +169,49 @@ export default {
       return this.artwork.filter(item => item.category === category)
     }
   },
+  
+  async mounted() {
+    await this.fetchArtworks()
+  },
   methods: {
+    async fetchArtworks() {
+      try {
+        this.loading = true
+        const response = await fetch('/api/artwork')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch artworks')
+        }
+        
+        this.artwork = await response.json()
+      } catch (error) {
+        console.error('Error fetching artworks:', error)
+        // Keep empty array on error
+        this.artwork = []
+      } finally {
+        this.loading = false
+      }
+    },
+    
+    formatCategory(category) {
+      return category.charAt(0).toUpperCase() + category.slice(1)
+    },
+    
+    formatDate(dateString) {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    },
+    
     getCategoryColor(category) {
       const colors = {
-        'Digital Art': 'purple',
-        'Photography': 'blue',
-        'Sketches': 'orange'
+        'painting': 'purple',
+        'ceramic': 'orange',
+        'embroidery': 'pink'
       }
       return colors[category] || 'grey'
     },
@@ -253,16 +222,6 @@ export default {
     viewDetails(artwork) {
       this.openArtwork(artwork)
     },
-    likeArtwork(id) {
-      const artwork = this.artwork.find(item => item.id === id)
-      if (artwork) {
-        artwork.liked = !artwork.liked
-        artwork.likes += artwork.liked ? 1 : -1
-      }
-    },
-    addArtwork() {
-      alert('Add artwork functionality would be implemented here for admin users.')
-    }
   }
 }
 </script>

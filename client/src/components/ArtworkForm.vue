@@ -12,6 +12,8 @@
           required
           placeholder="Enter artwork title"
           class="form-input"
+          @focus="clearError"
+          @input="clearError"
         />
       </div>
       
@@ -22,6 +24,8 @@
           v-model="formData.category" 
           required
           class="form-select"
+          @focus="clearError"
+          @change="clearError"
         >
           <option value="">Select category</option>
           <option value="painting">Painting</option>
@@ -39,6 +43,8 @@
           placeholder="Describe your artwork"
           class="form-textarea"
           rows="4"
+          @focus="clearError"
+          @input="clearError"
         ></textarea>
       </div>
       
@@ -46,8 +52,9 @@
         <label>Media Upload *</label>
         <MediaUpload 
           ref="mediaUpload"
-          @upload-success="handleUploadSuccess"
-          @upload-error="handleUploadError"
+          @file-selected="handleFileSelected"
+          @file-error="handleFileError"
+          @click="clearError"
         />
       </div>
       
@@ -57,6 +64,7 @@
           @click="resetForm"
           class="btn btn-secondary"
           :disabled="submitting"
+          @focus="clearError"
         >
           Reset
         </button>
@@ -64,20 +72,13 @@
         <button 
           type="submit" 
           class="btn btn-primary"
-          :disabled="submitting || !uploadedMedia"
+          :disabled="!isFormValid || submitting"
         >
           <span v-if="submitting">Creating...</span>
           <span v-else>Create Artwork</span>
         </button>
       </div>
       
-      <div v-if="error" class="error-message">
-        {{ error }}
-      </div>
-      
-      <div v-if="success" class="success-message">
-        Artwork created successfully!
-      </div>
     </form>
   </div>
 </template>
@@ -90,6 +91,7 @@ export default {
   components: {
     MediaUpload
   },
+  emits: ['artwork-created', 'artwork-error'],
   data() {
     return {
       formData: {
@@ -97,36 +99,48 @@ export default {
         category: '',
         description: ''
       },
-      uploadedMedia: null,
+      selectedFile: null,
       submitting: false,
       error: null,
-      success: false
+    }
+  },
+  
+  computed: {
+    isFormValid() {
+      return (
+        this.formData.title.trim() !== '' &&
+        this.formData.category !== '' &&
+        this.formData.description.trim() !== '' &&
+        this.selectedFile !== null
+      );
     }
   },
   methods: {
-    handleUploadSuccess(fileData) {
-      this.uploadedMedia = fileData;
+    handleFileSelected(fileData) {
+      this.selectedFile = fileData;
       this.error = null;
     },
     
-    handleUploadError(error) {
-      this.error = `Upload failed: ${error.message}`;
+    handleFileError(error) {
+      this.error = `File error: ${error.message}`;
+      this.selectedFile = null;
     },
     
     async submitArtwork() {
-      if (!this.uploadedMedia) {
-        this.error = 'Please upload a media file first';
+      if (!this.isFormValid) {
+        this.error = 'Please fill in all required fields and select a file';
+        this.$emit('artwork-error', this.error);
         return;
       }
       
       this.submitting = true;
       this.error = null;
-      this.success = false;
       
       const formData = new FormData();
-      formData.append('title', this.formData.title);
+      formData.append('title', this.formData.title.trim());
       formData.append('category', this.formData.category);
-      formData.append('description', this.formData.description);
+      formData.append('description', this.formData.description.trim());
+      formData.append('media', this.selectedFile.file);
       
       try {
         const response = await fetch('/api/artwork', {
@@ -134,19 +148,21 @@ export default {
           body: formData
         });
         
+        const result = await response.json();
+        
         if (!response.ok) {
-          throw new Error('Failed to create artwork');
+          throw new Error(result.message || 'Failed to create artwork');
         }
         
-        const result = await response.json();
-        this.success = true;
         this.resetForm();
         
         // Emit event to parent component
         this.$emit('artwork-created', result);
         
       } catch (error) {
-        this.error = error.message;
+        console.error('Artwork creation error:', error);
+        this.error = `Upload failed: ${error.message}`;
+        this.$emit('artwork-error', this.error);
       } finally {
         this.submitting = false;
       }
@@ -158,9 +174,8 @@ export default {
         category: '',
         description: ''
       };
-      this.uploadedMedia = null;
+      this.selectedFile = null;
       this.error = null;
-      this.success = false;
       
       if (this.$refs.mediaUpload) {
         this.$refs.mediaUpload.reset();
@@ -241,10 +256,6 @@ export default {
   transition: all 0.3s ease;
 }
 
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
 
 .btn-primary {
   background: var(--primary);
@@ -266,19 +277,4 @@ export default {
   color: var(--primary);
 }
 
-.error-message {
-  background: rgba(244, 67, 54, 0.1);
-  border: 1px solid var(--error);
-  border-radius: 4px;
-  padding: 0.75rem;
-  color: var(--error);
-}
-
-.success-message {
-  background: rgba(76, 175, 80, 0.1);
-  border: 1px solid var(--success);
-  border-radius: 4px;
-  padding: 0.75rem;
-  color: var(--success);
-}
 </style>

@@ -8,7 +8,8 @@
           </v-card-title>
           
           <v-card-text>
-            <v-form ref="form" v-model="valid" @submit.prevent="handleLogin">
+            <!-- Login Form -->
+            <v-form ref="loginForm" v-model="valid" @submit.prevent="handleLogin">
               <v-text-field
                 v-model="credentials.username"
                 :rules="usernameRules"
@@ -59,11 +60,12 @@
                 large
                 block
                 @click="handleLogin"
-                class="mb-4"
+                class="mb-2"
               >
                 <v-icon left>mdi-login</v-icon>
                 Login
               </v-btn>
+              
             </v-form>
           </v-card-text>
           
@@ -125,7 +127,7 @@ export default {
   
   methods: {
     async handleLogin() {
-      if (!this.$refs.form.validate()) {
+      if (!this.$refs.loginForm.validate()) {
         return
       }
       

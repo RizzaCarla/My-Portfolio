@@ -16,6 +16,14 @@ app.use(vuetify)
 
 // Initialize auth store and check for existing authentication
 const authStore = useAuthStore()
-authStore.checkAuth()
+
+// Check auth asynchronously
+authStore.checkAuth().then(authResult => {
+  // Handle session expiration
+  if (authResult?.expired) {
+    console.log(authResult.message)
+    // You can show a toast/notification here if you have a notification system
+  }
+})
 
 app.mount('#app')

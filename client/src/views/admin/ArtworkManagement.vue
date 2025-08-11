@@ -34,7 +34,18 @@
             :src="artwork.imageUrl || placeholderImage" 
             height="200"
             cover
+            :loading="loading"
           >
+            <template v-slot:placeholder>
+              <v-row class="fill-height ma-0" align="center" justify="center">
+                <v-progress-circular indeterminate color="primary"></v-progress-circular>
+              </v-row>
+            </template>
+            <template v-slot:error>
+              <v-row class="fill-height ma-0" align="center" justify="center">
+                <v-icon size="48" color="grey">mdi-image-broken-variant</v-icon>
+              </v-row>
+            </template>
             <div class="card-overlay">
               <v-btn icon small color="white" @click="editArtwork(artwork)">
                 <v-icon>mdi-pencil</v-icon>
@@ -83,10 +94,34 @@
           </v-btn>
         </v-card-title>
         
+        <!-- Single error message at top of modal -->
+        <v-alert
+          v-if="dialogError"
+          type="error"
+          dense
+          class="ma-4 mb-0"
+          dismissible
+          @dismiss="dialogError = null"
+        >
+          {{ dialogError }}
+        </v-alert>
+        
+        <v-alert
+          v-if="dialogSuccess"
+          type="success"
+          dense
+          class="ma-4 mb-0"
+          dismissible
+          @dismiss="dialogSuccess = null"
+        >
+          {{ dialogSuccess }}
+        </v-alert>
+        
         <v-card-text class="pa-0">
           <ArtworkForm 
             ref="artworkForm"
             @artwork-created="handleArtworkCreated"
+            @artwork-error="handleArtworkError"
           />
         </v-card-text>
       </v-card>
@@ -125,6 +160,8 @@ export default {
       itemToDelete: null,
       placeholderImage: 'https://via.placeholder.com/300x200?text=No+Image',
       loading: true,
+      dialogError: null,
+      dialogSuccess: null,
       
       // Real artwork data from API
       artworks: []
@@ -160,6 +197,8 @@ export default {
     
     openAddDialog() {
       this.editingArtwork = null
+      this.dialogError = null
+      this.dialogSuccess = null
       this.dialog = true
       
       // Reset form after dialog opens
@@ -177,17 +216,32 @@ export default {
     },
     
     closeDialog() {
+      // Reset form to clear uploaded photo and form data
+      if (this.$refs.artworkForm) {
+        this.$refs.artworkForm.resetForm()
+      }
+      
       this.dialog = false
       this.editingArtwork = null
+      this.dialogError = null
+      this.dialogSuccess = null
     },
     
     handleArtworkCreated(newArtwork) {
       // Add new artwork to the beginning of the list
       this.artworks.unshift(newArtwork)
-      this.closeDialog()
+      this.dialogError = null // Clear any previous error
+      this.dialogSuccess = 'Artwork created successfully!'
       
-      // Show success message
-      this.$emit('show-success', 'Artwork created successfully!')
+      // Close dialog after showing success
+      setTimeout(() => {
+        this.closeDialog()
+      }, 2000)
+    },
+    
+    handleArtworkError(error) {
+      this.dialogSuccess = null // Clear any previous success
+      this.dialogError = error
     },
     
     deleteArtwork(id) {

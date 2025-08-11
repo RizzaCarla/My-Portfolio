@@ -1,6 +1,7 @@
 <script>
 import { RouterView } from "vue-router";
 import AppHeader from "./components/AppHeader.vue";
+import TravelingBanner from "./components/TravelingBanner.vue";
 import starryBackground from "./assets/images/starry-night.png";
 
 export default {
@@ -8,6 +9,7 @@ export default {
   components: {
     RouterView,
     AppHeader,
+    TravelingBanner,
   },
   computed: {
     // This can be used to dynamically set the background image if needed
@@ -25,6 +27,9 @@ export default {
   <v-app class="app" :class="{ 'has-header': !isHomePage }">
     <!-- Header -->
     <AppHeader />
+
+    <!-- Travel Banner (show on all pages except home) -->
+    <TravelingBanner v-if="!isHomePage" />
 
     <!-- Main Content -->
     <v-main>
