@@ -8,7 +8,6 @@
             <h1 class="home-name" :class="{ 'typing': !nameComplete && greetingComplete }">{{ displayedName }}</h1>
             <p class="home-title"><span class="sparkling-star secret-login" @click="goToLogin">✨&nbsp;</span> Explore my latest creations <span class="sparkling-star sparkling-star-delayed">✨</span></p>
             
-            <!-- Latest Content Preview -->
             <div class="latest-content mt-8">
               <v-row>
                 <!-- Latest Artwork -->
