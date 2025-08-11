@@ -6,11 +6,13 @@ import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import artworkRoutes from './routes/artwork.js';
+import uploadRoutes from './routes/upload.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -75,7 +77,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// API routes placeholder
+// API routes
+app.use('/api/artwork', artworkRoutes);
+app.use('/api/upload', uploadRoutes);
+
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Backend is working!' });
 });

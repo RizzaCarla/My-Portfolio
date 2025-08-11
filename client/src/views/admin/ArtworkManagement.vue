@@ -31,7 +31,7 @@
       >
         <v-card elevation="2" class="artwork-card">
           <v-img 
-            :src="artwork.image || placeholderImage" 
+            :src="artwork.imageUrl || placeholderImage" 
             height="200"
             cover
           >
@@ -39,7 +39,7 @@
               <v-btn icon small color="white" @click="editArtwork(artwork)">
                 <v-icon>mdi-pencil</v-icon>
               </v-btn>
-              <v-btn icon small color="error" @click="deleteArtwork(artwork.id)">
+              <v-btn icon small color="error" @click="deleteArtwork(artwork._id)">
                 <v-icon>mdi-delete</v-icon>
               </v-btn>
             </div>
@@ -48,10 +48,13 @@
             {{ artwork.title }}
           </v-card-title>
           <v-card-subtitle>
-            {{ artwork.medium }} • {{ artwork.year }}
+            {{ artwork.category }}
           </v-card-subtitle>
           <v-card-text class="text-caption">
             {{ artwork.description }}
+          </v-card-text>
+          <v-card-text class="text-caption text--secondary">
+            {{ formatDate(artwork.createdAt) }}
           </v-card-text>
         </v-card>
       </v-col>
@@ -71,89 +74,21 @@
     </v-row>
 
     <!-- Add/Edit Dialog -->
-    <v-dialog v-model="dialog" max-width="600px" persistent>
+    <v-dialog v-model="dialog" max-width="800px" persistent>
       <v-card>
-        <v-card-title>
+        <v-card-title class="d-flex justify-space-between">
           <span class="text-h5">{{ editingArtwork ? 'Edit' : 'Add New' }} Artwork</span>
+          <v-btn icon @click="closeDialog">
+            <v-icon>mdi-close</v-icon>
+          </v-btn>
         </v-card-title>
         
-        <v-card-text>
-          <v-form ref="form" v-model="valid">
-            <v-text-field
-              v-model="formData.title"
-              :rules="titleRules"
-              label="Title *"
-              required
-              outlined
-              class="mb-3"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="formData.medium"
-              label="Medium"
-              outlined
-              class="mb-3"
-              placeholder="e.g., Oil on canvas, Digital art, Watercolor"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="formData.year"
-              label="Year"
-              outlined
-              class="mb-3"
-              type="number"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="formData.dimensions"
-              label="Dimensions"
-              outlined
-              class="mb-3"
-              placeholder="e.g., 24x36 inches"
-            ></v-text-field>
-            
-            <v-textarea
-              v-model="formData.description"
-              label="Description"
-              outlined
-              rows="3"
-              class="mb-3"
-            ></v-textarea>
-            
-            <v-text-field
-              v-model="formData.image"
-              label="Image URL"
-              outlined
-              class="mb-3"
-              placeholder="https://example.com/image.jpg"
-            ></v-text-field>
-            
-            <v-text-field
-              v-model="formData.price"
-              label="Price (optional)"
-              outlined
-              class="mb-3"
-              prefix="$"
-              type="number"
-            ></v-text-field>
-            
-            <v-select
-              v-model="formData.status"
-              :items="statusOptions"
-              label="Status"
-              outlined
-              class="mb-3"
-            ></v-select>
-          </v-form>
+        <v-card-text class="pa-0">
+          <ArtworkForm 
+            ref="artworkForm"
+            @artwork-created="handleArtworkCreated"
+          />
         </v-card-text>
-        
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn text @click="closeDialog">Cancel</v-btn>
-          <v-btn color="primary" :disabled="!valid" @click="saveArtwork">
-            {{ editingArtwork ? 'Update' : 'Save' }}
-          </v-btn>
-        </v-card-actions>
       </v-card>
     </v-dialog>
 
@@ -175,66 +110,29 @@
 </template>
 
 <script>
+import ArtworkForm from '@/components/ArtworkForm.vue'
+
 export default {
   name: 'ArtworkManagement',
+  components: {
+    ArtworkForm
+  },
   data() {
     return {
       dialog: false,
       deleteDialog: false,
-      valid: false,
       editingArtwork: null,
       itemToDelete: null,
       placeholderImage: 'https://via.placeholder.com/300x200?text=No+Image',
+      loading: true,
       
-      formData: {
-        title: '',
-        medium: '',
-        year: new Date().getFullYear(),
-        dimensions: '',
-        description: '',
-        image: '',
-        price: '',
-        status: 'available'
-      },
-      
-      titleRules: [
-        v => !!v || 'Title is required',
-        v => (v && v.length >= 2) || 'Title must be at least 2 characters'
-      ],
-      
-      statusOptions: [
-        { text: 'Available', value: 'available' },
-        { text: 'Sold', value: 'sold' },
-        { text: 'Not For Sale', value: 'not_for_sale' },
-        { text: 'Commission', value: 'commission' }
-      ],
-      
-      // Sample artwork data - in real app, this would come from API/database
-      artworks: [
-        {
-          id: 1,
-          title: 'Sunset Dreams',
-          medium: 'Oil on canvas',
-          year: 2023,
-          dimensions: '24x36 inches',
-          description: 'A vibrant sunset painting capturing the beauty of nature.',
-          image: 'https://via.placeholder.com/300x200?text=Sunset+Dreams',
-          price: 500,
-          status: 'available'
-        },
-        {
-          id: 2,
-          title: 'Abstract Flow',
-          medium: 'Acrylic on canvas',
-          year: 2023,
-          dimensions: '18x24 inches',
-          description: 'An abstract piece exploring movement and color.',
-          image: 'https://via.placeholder.com/300x200?text=Abstract+Flow',
-          price: 350,
-          status: 'sold'
-        }
-      ]
+      // Real artwork data from API
+      artworks: []
     }
+  },
+  
+  async mounted() {
+    await this.fetchArtworks()
   },
   
   methods: {
@@ -242,56 +140,54 @@ export default {
       this.$router.push('/admin/dashboard')
     },
     
+    async fetchArtworks() {
+      try {
+        this.loading = true
+        const response = await fetch('/api/artwork')
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch artworks')
+        }
+        
+        this.artworks = await response.json()
+      } catch (error) {
+        console.error('Error fetching artworks:', error)
+        this.$emit('show-error', 'Failed to load artworks')
+      } finally {
+        this.loading = false
+      }
+    },
+    
     openAddDialog() {
       this.editingArtwork = null
-      this.resetForm()
       this.dialog = true
+      
+      // Reset form after dialog opens
+      this.$nextTick(() => {
+        if (this.$refs.artworkForm) {
+          this.$refs.artworkForm.resetForm()
+        }
+      })
     },
     
     editArtwork(artwork) {
       this.editingArtwork = artwork
-      this.formData = { ...artwork }
+      // TODO: Implement edit functionality with existing artwork data
       this.dialog = true
     },
     
     closeDialog() {
       this.dialog = false
-      this.resetForm()
+      this.editingArtwork = null
     },
     
-    resetForm() {
-      this.formData = {
-        title: '',
-        medium: '',
-        year: new Date().getFullYear(),
-        dimensions: '',
-        description: '',
-        image: '',
-        price: '',
-        status: 'available'
-      }
-      if (this.$refs.form) {
-        this.$refs.form.resetValidation()
-      }
-    },
-    
-    saveArtwork() {
-      if (this.editingArtwork) {
-        // Update existing artwork
-        const index = this.artworks.findIndex(a => a.id === this.editingArtwork.id)
-        if (index !== -1) {
-          this.artworks[index] = { ...this.formData, id: this.editingArtwork.id }
-        }
-      } else {
-        // Add new artwork
-        const newArtwork = {
-          ...this.formData,
-          id: Date.now() // Simple ID generation - use proper UUID in real app
-        }
-        this.artworks.unshift(newArtwork)
-      }
-      
+    handleArtworkCreated(newArtwork) {
+      // Add new artwork to the beginning of the list
+      this.artworks.unshift(newArtwork)
       this.closeDialog()
+      
+      // Show success message
+      this.$emit('show-success', 'Artwork created successfully!')
     },
     
     deleteArtwork(id) {
@@ -299,12 +195,39 @@ export default {
       this.deleteDialog = true
     },
     
-    confirmDelete() {
+    async confirmDelete() {
       if (this.itemToDelete) {
-        this.artworks = this.artworks.filter(a => a.id !== this.itemToDelete)
+        try {
+          const response = await fetch(`/api/artwork/${this.itemToDelete}`, {
+            method: 'DELETE'
+          })
+          
+          if (!response.ok) {
+            throw new Error('Failed to delete artwork')
+          }
+          
+          // Remove from local array
+          this.artworks = this.artworks.filter(a => a._id !== this.itemToDelete)
+          this.$emit('show-success', 'Artwork deleted successfully!')
+          
+        } catch (error) {
+          console.error('Error deleting artwork:', error)
+          this.$emit('show-error', 'Failed to delete artwork')
+        }
+        
         this.itemToDelete = null
       }
       this.deleteDialog = false
+    },
+    
+    formatDate(dateString) {
+      if (!dateString) return ''
+      const date = new Date(dateString)
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      })
     }
   }
 }
